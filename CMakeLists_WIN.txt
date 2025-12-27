@@ -1,0 +1,191 @@
+cmake_minimum_required(VERSION 3.15)
+
+# CRITICAL: Set MSVC runtime library policy BEFORE project()
+cmake_policy(SET CMP0091 NEW)
+
+project(AudioPlayer LANGUAGES CXX)
+
+# ============================================================================
+# Windows-specific Configuration
+# ============================================================================
+if(NOT WIN32)
+  message(FATAL_ERROR "This CMakeLists.txt is for Windows only")
+endif()
+
+# Compiler requirements - Visual Studio 2022
+if(MSVC)
+  if(MSVC_VERSION LESS 1930)
+    message(FATAL_ERROR "Visual Studio 2022 or later required (MSVC 19.30+)")
+  else()
+    message(STATUS "Using MSVC version ${MSVC_VERSION}")
+  endif()
+else()
+  message(FATAL_ERROR "This build requires MSVC (Visual Studio)")
+endif()
+
+# Set default build type if not specified
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
+# ============================================================================
+# CRITICAL: Force static runtime library globally
+# ============================================================================
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
+# Enable C++17 standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# ============================================================================
+# Nuke Configuration
+# ============================================================================
+if(NOT DEFINED NUKE_VERSION)
+  set(NUKE_VERSION "16.0v6")
+endif()
+
+# Determine Python version based on Nuke version
+string(SUBSTRING ${NUKE_VERSION} 0 2 NUKE_MAJOR)
+if(NUKE_MAJOR VERSION_GREATER_EQUAL "16")
+  set(PYTHON_VERSION "311")
+elseif(NUKE_MAJOR VERSION_GREATER_EQUAL "15")
+  set(PYTHON_VERSION "310")
+elseif(NUKE_MAJOR VERSION_GREATER_EQUAL "14")
+  set(PYTHON_VERSION "39")
+else()
+  set(PYTHON_VERSION "37")
+endif()
+
+# Set Nuke directory
+if(NOT DEFINED NDKDIR)
+  set(NDKDIR "C:/Program Files/Nuke${NUKE_VERSION}")
+endif()
+
+# ============================================================================
+# Python Configuration - Use system Python with DELAY LOAD
+# ============================================================================
+set(PYTHON_LIB_NAME "python${PYTHON_VERSION}.lib")
+set(PYTHON_DLL_NAME "python${PYTHON_VERSION}.dll")
+
+# Search for Python library
+set(PYTHON_SEARCH_PATHS
+    "$ENV{USERPROFILE}/AppData/Local/Programs/Python/Python${PYTHON_VERSION}/libs"
+    "C:/Python${PYTHON_VERSION}/libs"
+    "C:/Program Files/Python${PYTHON_VERSION}/libs"
+    "$ENV{LOCALAPPDATA}/Programs/Python/Python${PYTHON_VERSION}/libs"
+)
+
+set(PYTHON_LIB_PATH "")
+foreach(SEARCH_PATH ${PYTHON_SEARCH_PATHS})
+  if(EXISTS "${SEARCH_PATH}/${PYTHON_LIB_NAME}")
+    set(PYTHON_LIB_PATH "${SEARCH_PATH}/${PYTHON_LIB_NAME}")
+    break()
+  endif()
+endforeach()
+
+if(NOT PYTHON_LIB_PATH)
+  message(FATAL_ERROR "Python ${PYTHON_VERSION} library not found!\nInstall Python 3.11 from python.org")
+endif()
+
+message(STATUS "Using Nuke version: ${NUKE_VERSION}")
+message(STATUS "Using Python lib: ${PYTHON_LIB_PATH}")
+message(STATUS "Python DLL: ${PYTHON_DLL_NAME} (DELAY LOADED - uses Nuke's Python)")
+message(STATUS "Nuke directory: ${NDKDIR}")
+
+# Verify Nuke directory exists
+if(NOT EXISTS "${NDKDIR}")
+  message(FATAL_ERROR "Nuke directory not found: ${NDKDIR}")
+endif()
+if(NOT EXISTS "${NDKDIR}/DDImage.lib")
+  message(FATAL_ERROR "DDImage.lib not found in: ${NDKDIR}")
+endif()
+
+# ============================================================================
+# Windows Compiler Flags and Definitions
+# ============================================================================
+add_definitions(
+  -DWIN32
+  -D_WINDOWS
+  -DNDEBUG
+  -DNOMINMAX
+  -D_CRT_SECURE_NO_WARNINGS
+  -D_SCL_SECURE_NO_WARNINGS
+  -D_USE_MATH_DEFINES
+  -DWIN32_LEAN_AND_MEAN
+)
+
+if(MSVC)
+  add_compile_options(
+    /W3
+    /O2
+    /Ob2
+    /EHsc
+    /FS
+    /nologo
+  )
+  
+  add_compile_options(
+    /wd4514
+    /wd4710
+    /wd4711
+    /wd4668
+  )
+endif()
+
+# ============================================================================
+# Create AudioPlayer Plugin
+# ============================================================================
+add_library(AudioPlayer SHARED
+    src/audioplayer.cpp
+    src/audioHandler.cpp
+)
+
+# CRITICAL: Set static runtime
+set_property(TARGET AudioPlayer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
+# Include directories
+target_include_directories(AudioPlayer PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    "${NDKDIR}/include"
+    "${NDKDIR}/include/include"
+)
+
+target_compile_definitions(AudioPlayer PRIVATE 
+    _USE_MATH_DEFINES 
+    NOMINMAX
+)
+
+# Link libraries with DELAY LOAD for Python
+target_link_libraries(AudioPlayer PRIVATE
+    "${NDKDIR}/DDImage.lib"
+    "${PYTHON_LIB_PATH}"
+    delayimp.lib
+)
+
+# CRITICAL: Delay-load Python DLL so it uses Nuke's Python at runtime
+target_link_options(AudioPlayer PRIVATE
+    "/DELAYLOAD:${PYTHON_DLL_NAME}"
+)
+
+# Set output properties
+set_target_properties(AudioPlayer PROPERTIES
+    OUTPUT_NAME "AudioPlayer"
+    SUFFIX ".dll"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/Release
+    LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/Release
+)
+
+# ============================================================================
+# Installation Configuration
+# ============================================================================
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX "$ENV{USERPROFILE}/.nuke" 
+      CACHE PATH "Install path" FORCE)
+endif()
+
+install(TARGETS AudioPlayer
+        RUNTIME DESTINATION .
+        LIBRARY DESTINATION .
+)
+
+message(STATUS "AudioPlayer v2.5 for Nuke ${NUKE_VERSION} (Windows)")

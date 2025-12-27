@@ -1,0 +1,25 @@
+LINUX:
+
+rm -rf build && mkdir build && cd build
+
+cmake .. -DNUKE_VERSION=16.0v6 -DCMAKE_INSTALL_PREFIX=~/.nuke
+
+make VERBOSE=1
+
+
+/////
+
+WIN:
+
+cd C:\Users\WORKSTATION\Downloads\AUDIO_FIN_FIN-20251227T152427Z-3-001\AUDIO_FIN_FIN\audioplayer_v9_160W
+
+rmdir /s /q build
+mkdir build
+cd build
+cmake .. -G "Visual Studio 17 2022" -A x64 -DNUKE_VERSION=16.0v6 -DCMAKE_INSTALL_PREFIX=%USERPROFILE%\.nuke
+cmake --build . --config Release --verbose
+
+/////
+
+MAC:
+
