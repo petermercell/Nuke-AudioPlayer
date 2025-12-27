@@ -1,0 +1,143 @@
+cmake_minimum_required(VERSION 3.15)
+project(AudioPlayer)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# ============================================================================
+# RPATH Configuration - Make plugin portable
+# ============================================================================
+set(CMAKE_SKIP_BUILD_RPATH TRUE)
+set(CMAKE_SKIP_INSTALL_RPATH TRUE)
+set(CMAKE_MACOSX_RPATH FALSE)
+
+# ============================================================================
+# macOS SPECIFIC CONFIGURATION
+# ============================================================================
+if(NOT APPLE)
+    message(FATAL_ERROR "This CMakeLists.txt is for macOS only")
+endif()
+
+# Set architecture (arm64 for Apple Silicon, x86_64 for Intel)
+if(NOT DEFINED CMAKE_OSX_ARCHITECTURES)
+    set(CMAKE_OSX_ARCHITECTURES "arm64")
+endif()
+
+# ============================================================================
+# Nuke Configuration
+# ============================================================================
+if(NOT DEFINED NUKE_VERSION)
+    set(NUKE_VERSION "16.0v6")
+endif()
+
+# Determine Python version based on Nuke version
+string(SUBSTRING ${NUKE_VERSION} 0 2 NUKE_MAJOR)
+if(NUKE_MAJOR VERSION_GREATER_EQUAL "16")
+    set(PYTHON_VERSION "3.11")
+elseif(NUKE_MAJOR VERSION_GREATER_EQUAL "15")
+    set(PYTHON_VERSION "3.10")
+elseif(NUKE_MAJOR VERSION_GREATER_EQUAL "14")
+    set(PYTHON_VERSION "3.9")
+else()
+    set(PYTHON_VERSION "3.7")
+endif()
+
+set(NUKE_BASE_DIR "/Applications/Nuke${NUKE_VERSION}")
+set(NUKE_APP_DIR "${NUKE_BASE_DIR}/Nuke${NUKE_VERSION}.app/Contents")
+set(NUKE_MACOS_DIR "${NUKE_APP_DIR}/MacOS")
+set(NUKE_FRAMEWORKS_DIR "${NUKE_APP_DIR}/Frameworks")
+
+message(STATUS "Nuke Version: ${NUKE_VERSION}")
+message(STATUS "Nuke Directory: ${NUKE_MACOS_DIR}")
+message(STATUS "Python Version: ${PYTHON_VERSION}")
+message(STATUS "Architecture: ${CMAKE_OSX_ARCHITECTURES}")
+
+# Verify Nuke directory exists
+if(NOT EXISTS ${NUKE_MACOS_DIR})
+    message(FATAL_ERROR "Nuke directory not found: ${NUKE_MACOS_DIR}")
+endif()
+if(NOT EXISTS ${NUKE_MACOS_DIR}/libDDImage.dylib)
+    message(FATAL_ERROR "libDDImage.dylib not found in: ${NUKE_MACOS_DIR}")
+endif()
+
+# ============================================================================
+# Python Configuration - Use Nuke's Python Framework
+# ============================================================================
+set(PYTHON_FRAMEWORK "${NUKE_FRAMEWORKS_DIR}/Python.framework/Versions/${PYTHON_VERSION}")
+set(PYTHON_INCLUDE "${PYTHON_FRAMEWORK}/include/python${PYTHON_VERSION}")
+set(PYTHON_LIB "${PYTHON_FRAMEWORK}/lib/libpython${PYTHON_VERSION}.dylib")
+
+if(EXISTS ${PYTHON_INCLUDE})
+    message(STATUS "Python include: ${PYTHON_INCLUDE}")
+else()
+    message(STATUS "Python include not found, trying MacOS/include...")
+    set(PYTHON_INCLUDE "${NUKE_MACOS_DIR}/include/python${PYTHON_VERSION}")
+endif()
+
+if(EXISTS ${PYTHON_LIB})
+    message(STATUS "Python lib: ${PYTHON_LIB}")
+else()
+    message(STATUS "Python lib not found - will use dynamic lookup")
+endif()
+
+# ============================================================================
+# Compiler Flags
+# ============================================================================
+add_compile_options(-fPIC -O2)
+set(CMAKE_SHARED_LIBRARY_PREFIX "")
+
+# ============================================================================
+# Create AudioPlayer Plugin
+# ============================================================================
+add_library(AudioPlayer SHARED
+    src/audioplayer.cpp
+    src/audioHandler.cpp
+)
+
+# Set plugin properties
+set_target_properties(AudioPlayer PROPERTIES 
+    SUFFIX ".dylib"
+    INSTALL_NAME_DIR "@rpath"
+    BUILD_WITH_INSTALL_NAME_DIR TRUE
+)
+
+# Include directories
+target_include_directories(AudioPlayer PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    ${NUKE_MACOS_DIR}/include
+    ${PYTHON_INCLUDE}
+)
+
+# Link libraries
+# Use -undefined dynamic_lookup for Python symbols
+# This allows the plugin to use Nuke's already-loaded Python at runtime
+target_link_libraries(AudioPlayer PRIVATE 
+    ${NUKE_MACOS_DIR}/libDDImage.dylib
+    "-undefined dynamic_lookup"
+)
+
+# ============================================================================
+# Installation Configuration
+# ============================================================================
+if(NOT DEFINED CMAKE_INSTALL_PREFIX OR CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/.nuke" CACHE PATH "Install path" FORCE)
+endif()
+
+install(TARGETS AudioPlayer DESTINATION ${CMAKE_INSTALL_PREFIX})
+
+# ============================================================================
+# Build Summary
+# ============================================================================
+message(STATUS "========================================")
+message(STATUS "AudioPlayer v2.5 - macOS Build Configuration")
+message(STATUS "========================================")
+message(STATUS "  Plugin: AudioPlayer.dylib")
+message(STATUS "  Nuke Version: ${NUKE_VERSION}")
+message(STATUS "  Nuke Directory: ${NUKE_MACOS_DIR}")
+message(STATUS "  Python Version: ${PYTHON_VERSION}")
+message(STATUS "  Python Include: ${PYTHON_INCLUDE}")
+message(STATUS "  Architecture: ${CMAKE_OSX_ARCHITECTURES}")
+message(STATUS "  Install Prefix: ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "")
+message(STATUS "  Python linking: dynamic_lookup (uses Nuke's Python)")
+message(STATUS "========================================")
