@@ -4,6 +4,8 @@
 
 A Nuke plugin that plays audio synchronized to the timeline, allowing you to hear audio while scrubbing through frames. Essential for animation, lip-sync, and music video work.
 
+![AudioPlayer Waveform](https://raw.githubusercontent.com/petermercell/Nuke-AudioPlayer/main/AudioPlayer.png)
+
 ## Features
 
 - **Per-frame audio playback** - Hear audio when scrubbing through timeline
