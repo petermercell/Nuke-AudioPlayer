@@ -1,0 +1,156 @@
+#! /Applications/Nuke16.0v6/Nuke16.0v6.app/Contents/MacOS/libnuke-16.0.6.dylib -nx
+version 16.0 v6
+define_window_layout_xml {<?xml version="1.0" encoding="UTF-8"?>
+<layout version="1.0">
+    <window x="0" y="31" w="1440" h="793" maximized="1" screen="0">
+        <splitter orientation="1">
+            <split size="40"/>
+            <dock id="" hideTitles="1" activePageId="Toolbar.1">
+                <page id="Toolbar.1"/>
+            </dock>
+            <split size="777" stretch="1"/>
+            <splitter orientation="2">
+                <split size="454"/>
+                <dock id="" activePageId="Viewer.1">
+                    <page id="Viewer.1"/>
+                </dock>
+                <split size="319"/>
+                <dock id="" activePageId="DAG.1" focus="true">
+                    <page id="DAG.1"/>
+                    <page id="Curve Editor.1"/>
+                    <page id="DopeSheet.1"/>
+                </dock>
+            </splitter>
+            <split size="615"/>
+            <dock id="" activePageId="Properties.1">
+                <page id="Properties.1"/>
+                <page id="uk.co.thefoundry.backgroundrenderview.1"/>
+                <page id="Scenegraph.1"/>
+            </dock>
+        </splitter>
+    </window>
+</layout>
+}
+Root {
+ inputs 0
+ name /Users/g/Desktop/EXAMPLE/TestAudio.nk
+ frame 106
+ last_frame 120
+ format "2048 1556 0 0 2048 1556 1 2K_Super_35(full-ap)"
+ proxy_type scale
+ proxy_format "1024 778 0 0 1024 778 1 1K_Super_35(full-ap)"
+ colorManagement OCIO
+ OCIO_config custom
+ customOCIOConfigPath /Users/g/.nuke/color/OCIOConfigs/configs/aces_1.2/config.ocio
+ defaultViewerLUT "OCIO LUTs"
+ workingSpaceLUT scene_linear
+ monitorLut "sRGB (ACES)"
+ monitorOutLUT "Rec.709 (ACES)"
+ int8Lut matte_paint
+ int16Lut texture_paint
+ logLut compositing_log
+ floatLut scene_linear
+}
+Constant {
+ inputs 0
+ channels rgb
+ name Constant2
+ xpos 30
+ ypos -125
+}
+AudioPlayer {
+ file_name /Users/g/Desktop/AudioOnly.wav
+ fps 24
+ name AudioPlayer2
+ xpos 30
+ ypos -53
+}
+set Nb8f3ad00 [stack 0]
+Viewer {
+ frame_range 1-120
+ viewerProcess "Rec.709 (ACES)"
+ monitorOutNDISenderName "NukeX - TestAudio - Viewer1"
+ name Viewer1
+ xpos 30
+ ypos 118
+}
+Constant {
+ inputs 0
+ channels rgb
+ name Constant1
+ xpos -335
+ ypos -117
+}
+AudioPlayer {
+ file_name /Users/g/Desktop/AudioOnly.wav
+ offset -3
+ fps 24
+ name AudioPlayer1
+ xpos -335
+ ypos -45
+}
+Remove {
+ name Remove1
+ xpos -335
+ ypos -21
+}
+Read {
+ inputs 0
+ file_type mov
+ file /Users/g/Desktop/VideoOnly.mov
+ format "1920 1080 0 0 1920 1080 1 HD_1080"
+ last 120
+ origlast 120
+ origset true
+ colorspace color_picking
+ name Read2
+ xpos -180
+ ypos -442
+}
+Dot {
+ name Dot1
+ xpos -145
+ ypos -279
+}
+set Nbc7ef700 [stack 0]
+Merge2 {
+ inputs 2
+ name Merge1
+ xpos -179
+ ypos -17
+}
+Dot {
+ name Dot3
+ xpos -145
+ ypos 45
+}
+push $Nb8f3ad00
+Remove {
+ name Remove2
+ xpos 30
+ ypos -29
+}
+push $Nbc7ef700
+Dot {
+ name Dot2
+ xpos 220
+ ypos -279
+}
+TimeOffset {
+ time_offset 3
+ time ""
+ name TimeOffset1
+ xpos 186
+ ypos -66
+}
+Merge2 {
+ inputs 2
+ name Merge2
+ xpos 186
+ ypos -25
+}
+Dot {
+ name Dot4
+ xpos 220
+ ypos 37
+}
