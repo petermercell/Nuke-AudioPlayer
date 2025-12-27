@@ -134,7 +134,7 @@ miniaudio is public domain / MIT No Attribution - free for commercial use.
 
 ## Changelog
 
-### v2.5 (2024)
+### v2.5 (2025)
 - Replaced OpenAL/ALUT with miniaudio (no dependencies)
 - Added stereo waveform with amplitude-based brightness
 - Cross-platform: Linux, Windows, macOS
